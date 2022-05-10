@@ -1,0 +1,93 @@
+pragma solidity ^0.4.26;
+
+contract Insurance {
+    address owner;
+    address owner2;
+    address insured;
+
+
+    struct information {
+        uint64 day;
+        uint64 plan;
+        string region;
+        string discriminationCharacter;
+        uint256 classNumber;
+        uint256 licenseNumber;
+    }
+
+    struct informations {
+        uint64 userNumber;
+        mapping(uint64 => information)informations ;
+    }
+
+    mapping(address => informations) userInformation;
+
+      constructor() public {
+        owner = msg.sender;
+    }
+
+    modifier isOwner() {
+        require(msg.sender == owner);
+        _;
+    }
+
+     event Ticket(uint64 userNumber);
+
+    function returnPrice(uint64 day,uint64 plan)
+        public
+        pure
+        returns (
+            uint64
+        )
+    {
+        if(plan==1){
+            return day*800;
+        }else if(plan==2){
+            return day*1800;
+        }else if(plan==3){
+            return day*2600;
+        }else{
+             if (plan<1||3<plan){
+               revert("Please enter the correct plan.");
+             }
+        return 0;
+        }
+        
+    }
+
+    function setProbability(
+        uint64 _day,
+        uint64 _plan,
+        string _region,
+        string _discriminationCharacter,
+        uint256 _classNumber,
+        uint256 _licenseNumber
+    ) public  {
+        userInformation[msg.sender]
+        .informations[userInformation[msg.sender].userNumber]
+        .day = uint64(_day);
+        userInformation[msg.sender]
+        .informations[userInformation[msg.sender].userNumber]
+        .plan = uint64(_plan);
+        userInformation[msg.sender]
+        .informations[userInformation[msg.sender].userNumber]
+        .region = string(_region);
+        userInformation[msg.sender]
+        .informations[userInformation[msg.sender].userNumber]
+        .discriminationCharacter = string(_discriminationCharacter);
+        userInformation[msg.sender]
+        .informations[userInformation[msg.sender].userNumber]
+        .classNumber = uint64(_classNumber);
+        userInformation[msg.sender]
+        .informations[userInformation[msg.sender].userNumber]
+        .licenseNumber = uint64(_licenseNumber);
+
+        userInformation[msg.sender].userNumber++;
+        emit Ticket(userInformation[msg.sender].userNumber - 1);
+
+     
+    }
+
+
+
+}
