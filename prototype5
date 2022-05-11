@@ -1,0 +1,166 @@
+pragma solidity ^0.4.26;
+
+contract Insurance {
+    address owner;
+    address owner2;
+    address insured;
+
+    uint256 ticket=1;
+
+    event Ticket(uint256 contractNumber);
+
+    struct information {
+        address a;
+        uint64 payment;
+        uint64 day;
+        uint64 plan;
+        string region;
+        string discriminationCharacter;
+        uint256 classNumber;
+        uint256 serialNumber;
+        uint256 licenseNumber;
+    }
+
+    mapping(uint256 => information) userInformation;
+
+      constructor() public {
+        owner = msg.sender;
+    }
+
+    modifier isOwner() {
+        require(msg.sender == owner);
+        _;
+    }
+
+    
+   
+
+
+    function setMoney()public payable isOwner
+    {
+
+    }
+
+    function returnPrice(uint64 day,uint64 plan)
+        public
+        pure
+        returns (
+            uint64
+        )
+    {
+        if(plan==1){
+            return day*800;
+        }else if(plan==2){
+            return day*1800;
+        }else if(plan==3){
+            return day*2600;
+        }else{
+             if (plan<1||3<plan){
+               revert("Please enter the correct plan.");
+             }
+        return 0;
+        }
+        
+    }
+
+    function setInformation (
+        uint64 _day,
+        uint64 _plan,
+        string _region,
+        string _discriminationCharacter,
+        uint256 _classNumber,
+        uint256 _serialNumber,
+        uint256 _licenseNumber
+    )
+     public  
+     payable
+     refundGasCost
+    {
+        uint256 pay;
+
+        if (_plan<1||3<_plan){
+               revert("適切なプラン番号をご入力ください。");
+           }
+         if(_plan==1){
+             pay=_day*800;
+        }else if(_plan==2){
+            pay=_day*1800;
+        }else if(_plan==3){
+            pay=_day*2600;
+        }
+
+        if(msg.value<pay){
+            revert("適切な金額をお支払いください。");
+        }
+
+
+
+
+        userInformation[ticket]
+        .day=_day;
+        userInformation[ticket]
+        .plan=_plan;
+        userInformation[ticket]
+        .region=_region;
+        userInformation[ticket]
+        .discriminationCharacter=_discriminationCharacter;
+        userInformation[ticket]
+        .classNumber=_classNumber;
+        userInformation[ticket]
+        .serialNumber=_serialNumber;
+        userInformation[ticket]
+        .licenseNumber=_licenseNumber;
+         userInformation[ticket]
+         .a=msg.sender;
+
+
+        ticket++;
+        emit Ticket(ticket - 1);
+       
+    }
+
+    modifier refundGasCost()
+    {
+        uint remainingGasStart = gasleft();
+
+        _;
+
+        uint remainingGasEnd = gasleft();
+        uint usedGas = remainingGasStart - remainingGasEnd;
+        // Add intrinsic gas and transfer gas. Need to account for gas stipend as well.
+        usedGas += 21000 + 9700;
+        // Possibly need to check max gasprice and usedGas here to limit possibility for abuse.
+        uint gasCost = usedGas * tx.gasprice;
+        // Refund gas cost
+        msg.sender.transfer(gasCost);
+    }
+
+    function setPayment (
+      uint256 contractNumber,
+      uint64 _payment
+    )
+    public  
+    payable
+    isOwner
+    {
+          if(_payment>msg.value){
+            revert("金額が足りていません。");
+        }
+        userInformation[contractNumber]
+        .payment=_payment;
+    }
+
+    function getPayment(
+        uint256 contractNumber
+    )
+    public 
+    returns(bool)
+    {
+        if(msg.sender!=userInformation[contractNumber].a){
+            revert("適切な契約者番号を入力してください。");
+        }
+        return msg.sender.call.value(userInformation[contractNumber].payment)();
+    }
+
+
+}
