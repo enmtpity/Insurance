@@ -1,0 +1,250 @@
+pragma solidity ^0.4.26;
+
+contract Insurance {
+    //保険会社のアドレス
+    address owner;
+   
+    //契約者番号
+    uint256 ticket=1;
+
+
+    //契約者番号通知のイベント
+    event Ticket(uint256 contractNumber);
+
+    //契約者情報
+    struct information {
+        //契約者アドレス
+        address insured;
+        //保険金
+        uint64 payment;
+        //加入日数
+        uint64 day;
+        //加入プラン
+        uint64 plan;
+        //ナンバープレート地名
+        string region;
+        //ナンバープレートひらがな
+        string discriminationCharacter;
+        //ナンバープレート右上の数字
+        uint256 classNumber;
+        //ナンバープレートでかい数字
+        uint256 serialNumber;
+       
+    }
+    //契約者番号でマッピング
+    mapping(uint256 => information) userInformation;
+
+    struct priorInformation{
+         //加入者氏名
+        string name;
+        //生年月日
+        uint64 birth;
+        //郵便番号
+        uint64 postCord;
+        //住所
+        string residence;
+        //連絡先
+        uint64 phoneNumber;
+        //免許証番号
+        uint256 licenseNumber;
+        //事前情報認証
+        bool certification;
+
+        //総加入日数
+        uint64 allDay;
+    }
+    
+    mapping(address => priorInformation) userPriorInformation;
+
+      constructor() public {
+        //このコントラクトをデプロイしたもののアドレスをownerに設定
+        owner = msg.sender;
+    }
+
+    modifier isOwner() {
+        //ownerかどうか確認してownerではなかったら警告
+        require(msg.sender == owner);
+        _;
+    }
+
+    
+   
+
+    //保険会社による最初のgas代負担のための入金
+    function setMoney()public payable isOwner
+    {
+
+    }
+
+    //契約者による料金確認
+    function returnPrice(uint64 day,uint64 plan)
+        public
+        pure
+        returns (
+            uint64
+        )
+    {
+        if(plan==1){
+            return day*800;
+        }else if(plan==2){
+            return day*1800;
+        }else if(plan==3){
+            return day*2600;
+        }else{
+             if (plan<1||3<plan){
+               revert("Please enter the correct plan.");
+             }
+        return 0;
+        }
+        
+    }
+
+    //事前情報入力
+    function setPriorInformation(
+        string _name,
+        uint64 _birth,
+        uint64 _postCord,
+        string _residence,
+        uint64 _phoneNumber,
+        uint256 _licenseNumber
+    )
+     public
+     refundGasCost
+    {
+        userPriorInformation[msg.sender]
+        .name=_name;
+        userPriorInformation[msg.sender]
+        .birth=_birth;
+        userPriorInformation[msg.sender]
+        .postCord=_postCord;
+        userPriorInformation[msg.sender]
+        .residence=_residence;
+        userPriorInformation[msg.sender]
+        .phoneNumber=_phoneNumber;
+        userPriorInformation[msg.sender]
+        .licenseNumber=_licenseNumber;
+        userPriorInformation[msg.sender]
+        .allDay=0;
+
+
+    }
+    
+
+    //契約者による契約情報入力と送金
+    function setInformation (
+        uint64 _day,
+        uint64 _plan,
+        string _region,
+        string _discriminationCharacter,
+        uint256 _classNumber,
+        uint256 _serialNumber
+    )
+     public  
+     payable
+     refundGasCost
+    {
+        if(userPriorInformation[msg.sender].birth==0){
+            revert("先に事前情報を登録してください");
+        }
+
+        
+        uint256 pay;
+
+        if (_plan<1||3<_plan){
+               revert("適切なプラン番号をご入力ください。");
+           }
+        if(_plan==1){
+             pay=_day*800;
+        }else if(_plan==2){
+            pay=_day*1800;
+        }else if(_plan==3){
+            pay=_day*2600;
+        }
+        if(userPriorInformation[msg.sender].allDay>=20){
+            pay=pay*4/5;
+        }else if(userPriorInformation[msg.sender].allDay>=10){
+            pay=pay*17/20;
+        }else if(userPriorInformation[msg.sender].allDay>=5){
+            pay=pay*23/25;
+        }
+        if(msg.value<pay){
+            revert("適切な金額をお支払いください。");
+        }
+
+        userInformation[ticket]
+        .day=_day;
+        userInformation[ticket]
+        .plan=_plan;
+        userInformation[ticket]
+        .region=_region;
+        userInformation[ticket]
+        .discriminationCharacter=_discriminationCharacter;
+        userInformation[ticket]
+        .classNumber=_classNumber;
+        userInformation[ticket]
+        .serialNumber=_serialNumber;
+        userInformation[ticket]
+        .insured=msg.sender;
+
+        //契約者番号を次の人の分に設定しなおす
+        ticket++;
+        //情報を入力した人の契約者番号通知
+        emit Ticket(ticket - 1);
+        //割引用の日数保存
+        userPriorInformation[msg.sender]
+        .allDay+=_day;
+       
+    }
+
+    //契約者が支払ったgas代のコストを概算
+    modifier refundGasCost()
+    {
+        uint remainingGasStart = gasleft();
+
+        _;
+
+        uint remainingGasEnd = gasleft();
+        uint usedGas = remainingGasStart - remainingGasEnd;
+      
+        usedGas += 21000 + 9700;
+       
+        uint gasCost = usedGas * tx.gasprice;
+      
+        msg.sender.transfer(gasCost);
+    }
+
+    //保険会社による保険金の入金
+    function setPayment (
+      uint256 contractNumber,
+      uint64 _payment
+    )
+    public  
+    payable
+    isOwner
+    {
+          if(_payment>msg.value){
+            revert("金額が足りていません。");
+        }
+        userInformation[contractNumber]
+        .payment=_payment;
+    }
+
+    //契約者による保険金の受取
+    function getPayment(
+        uint256 contractNumber
+    )
+    public 
+    returns(bool)
+    {
+        if(msg.sender!=userInformation[contractNumber].insured){
+            revert("適切な契約者番号を入力してください。");
+        }
+        return msg.sender.call.value(userInformation[contractNumber].payment)();
+    }
+
+    //保険会社による保険料の受取
+    function withdraw() external isOwner {
+    owner.transfer(address(this).balance);
+  }
+
+}
